@@ -54,7 +54,16 @@ jobs:
             ls /layer/chrome/lib | head
           '
 
-      # 3) 打包
+      # 3) 统一加执行权限（层 /opt 只读，必须在构建时搞定；且不能用文件夹上传，否则丢 +x）
+      - name: Fix exec permissions
+        run: |
+          chmod +x layer_root/chrome/chrome layer_root/chrome/chromedriver
+          find layer_root -name 'selenium-manager' -exec chmod +x {} +
+          # 把所有 ELF 可执行文件加 +x，防止层上传后丢失执行权限
+          find layer_root -type f -exec sh -c 'file "$1" | grep -q ELF && chmod +x "$1"' _ {} \;
+          echo "selenium-manager perms:"; ls -l layer_root/selenium/webdriver/common/linux/selenium-manager
+
+      # 4) 打包
       - name: Zip layer
         run: |
           cd layer_root
