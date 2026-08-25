@@ -35,10 +35,16 @@ HEADERS = {
 def query(id_num):
     cj = http.cookiejar.CookieJar()
     ctx = ssl._create_unverified_context()  # 规避 SCF 可能的证书/握手卡顿
-    op = urllib.request.build_opener(
+    handlers = [
         urllib.request.HTTPCookieProcessor(cj),
         urllib.request.HTTPSHandler(context=ctx),
-    )
+    ]
+    # 目标站点屏蔽了腾讯云出口 IP，可设置 HTTPS_PROXY/HTTP_PROXY 走允许的代理
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+    if proxy:
+        print("使用代理:", proxy)
+        handlers.insert(0, urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+    op = urllib.request.build_opener(*handlers)
     print("开始请求查询接口...")
     params = {
         "filePerson.person.identityCard": id_num,
