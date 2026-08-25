@@ -19,7 +19,6 @@ DINGTALK_WEBHOOK = os.environ.get(
 
 RESULT_URL = "https://rsda.shrc.com.cn/selectFilePerson/selectPersonList.ftl"
 QUERY_URL  = "https://rsda.shrc.com.cn/selectFilePerson/selectFilePersonListAction.action"
-CACHE_FILE = "/tmp/last_spider_result.txt"
 NOTIFY_METHOD = "dingtalk"
 
 HEADERS = {
@@ -134,48 +133,19 @@ def main_handler(event, context):
     else:
         result_message = f"查询失败！身份证号：{m}，未找到档案信息。"
 
-    cache_data = {"page_content": "", "first": "", "last": "", "last_success": False}
-    if os.path.exists(CACHE_FILE):
-        try:
-            with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if content:
-                    cache_data.update(json.loads(content))
-        except Exception as e:
-            print("读取缓存失败:", e)
-
     now = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M:%S")
-    has_changed = html != cache_data.get("page_content", "")
-    is_first = not cache_data.get("page_content")
 
-    if has_changed or is_first:
-        msg = f"""
+    msg = f"""
 📋 人事档案查询结果通知
-━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━
 🔍 查询号码：{m}
 🔇 查询状态：{'成功' if is_success else '失败'}
 {'✅' if is_success else '❌'} 详细信息：{result_message}
 ⏰ 查询时间：{now}
-━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━
 """
-        if NOTIFY_METHOD == "dingtalk":
-            send_dingtalk(msg)
-        cache_data["page_content"] = html
-        cache_data["first"] = cache_data.get("first") or now
-        cache_data["last"] = now
-        cache_data["last_success"] = is_success
-        try:
-            with open(CACHE_FILE, "w", encoding="utf-8") as f:
-                json.dump(cache_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print("更新缓存失败:", e)
-    else:
-        cache_data["last"] = now
-        try:
-            with open(CACHE_FILE, "w", encoding="utf-8") as f:
-                json.dump(cache_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print("更新缓存失败:", e)
+    if NOTIFY_METHOD == "dingtalk":
+        send_dingtalk(msg)
 
     return {
         "statusCode": 200,
@@ -183,7 +153,6 @@ def main_handler(event, context):
             {
                 "success": True,
                 "message": result_message,
-                "changed": has_changed or is_first,
             }
         ),
     }
