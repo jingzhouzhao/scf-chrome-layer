@@ -1,0 +1,59 @@
+name: Build SCF Chrome Layer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1) 在 ubuntu 上装纯 Python 依赖（selenium 跨版本通用）
+      - name: Install python deps
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install "selenium==4.9.1" "urllib3<2" "trio<0.23" -t layer_root
+          # 清掉无关缓存，减小体积
+          find layer_root -name "__pycache__" -type d -prune -exec rm -rf {} +
+
+      # 2) 在 CentOS 7 容器里取 EPEL 的 chromium（专为 CentOS7/glibc2.17 构建）+ 收集所有 .so
+      - name: Build chrome + libs on CentOS 7
+        run: |
+          docker run --rm -v "$PWD/layer_root:/layer" centos:7 bash -c '
+            set -e
+            yum install -y epel-release
+            yum install -y chromium chromedriver
+            mkdir -p /layer/chrome/lib
+            CHROME_SRC=$(readlink -f /usr/bin/chromium-browser)
+            DRIVER_SRC=$(readlink -f /usr/bin/chromedriver)
+            [ -x "$CHROME_SRC" ] || CHROME_SRC=$(find /usr/lib64/chromium-browser -maxdepth 1 -name "chromium-browser" -type f | head -1)
+            cp -L "$CHROME_SRC" /layer/chrome/chrome
+            cp -L "$DRIVER_SRC" /layer/chrome/chromedriver
+            chmod +x /layer/chrome/chrome /layer/chrome/chromedriver
+            echo "chrome: $CHROME_SRC  driver: $DRIVER_SRC"
+            # 收集 chrome 与 chromedriver 依赖的所有动态库，并保留 soname 软链
+            ldd /layer/chrome/chrome /layer/chrome/chromedriver 2>/dev/null \
+              | grep -E "=>" | awk "{print \$1, \$3}" | while read soname resolved; do
+                [ -z "$resolved" ] && continue
+                [ ! -e "$resolved" ] && continue
+                base=$(basename "$resolved")
+                cp -L "$resolved" "/layer/chrome/lib/$base"
+                [ "$soname" != "$base" ] && ln -sf "$base" "/layer/chrome/lib/$soname"
+              done
+            echo "collected libs:"; ls /layer/chrome/lib | head
+          '
+
+      # 3) 打包
+      - name: Zip layer
+        run: |
+          cd layer_root
+          zip -r ../scf-chrome-layer.zip . 
+          cd ..
+          ls -lh scf-chrome-layer.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scf-chrome-layer
+          path: scf-chrome-layer.zip
