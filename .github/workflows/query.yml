@@ -21,7 +21,7 @@ jobs:
         env:
           IDENTITY_CARD: ${{ secrets.IDENTITY_CARD }}
         run: |
-          curl -s -o /dev/null -w "site HTTP=%{http_code} time=%{time_total}s\n" \
+          curl -s -4 -o /dev/null -w "site HTTP=%{http_code} time=%{time_total}s\n" \
             --max-time 20 -X POST \
             'https://rsda.shrc.com.cn/selectFilePerson/selectFilePersonListAction.action' \
             -H 'Content-Type: application/x-www-form-urlencoded' \
