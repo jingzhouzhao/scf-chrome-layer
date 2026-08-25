@@ -52,8 +52,7 @@ jobs:
               done
             # 构建时统一加执行权限（层 /opt 只读，必须在打包前搞定；此处为 root 可执行）
             chmod +x /layer/chrome/chrome /layer/chrome/chromedriver
-            find /layer -name 'selenium-manager' -exec chmod +x {} +
-            find /layer -type f -exec sh -c 'file "$1" | grep -q ELF && chmod +x "$1"' _ {} \;
+            find /layer -name "selenium-manager" -exec chmod +x {} +
             echo "collected libs count:"; ls /layer/chrome/lib | wc -l
             ls /layer/chrome/lib | head
           '
