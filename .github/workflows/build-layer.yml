@@ -50,6 +50,21 @@ jobs:
                 linkname=$(basename "$soname")
                 [ "$linkname" != "$base" ] && ln -sf "$base" "/layer/chrome/lib/$linkname" 2>/dev/null || true
               done
+            # 递归收集传递依赖，确保闭包完整（chrome 会 dlopen 部分库，单次 ldd 抓不到）
+            for i in 1 2 3; do
+              find /layer/chrome/lib -type f 2>/dev/null | while read libfile; do
+                ldd "$libfile" 2>/dev/null | grep -E "=>" | awk "{print \$3}" | while read dep; do
+                  [ -z "$dep" ] && continue
+                  [ ! -e "$dep" ] && continue
+                  cp -L "$dep" "/layer/chrome/lib/$(basename "$dep")" 2>/dev/null || true
+                done
+              done
+            done
+            # 显式补齐 chrome 运行时会 dlopen 的 NSS/加密库
+            for extra in libnssckbi.so libsoftokn3.so libfreebl3.so libfreeblpriv3.so libnssdbm3.so p11-kit-trust.so; do
+              f=$(find /usr/lib64 /lib64 -maxdepth 1 -name "$extra" 2>/dev/null | head -1)
+              [ -n "$f" ] && cp -L "$f" /layer/chrome/lib/ 2>/dev/null || true
+            done
             # 构建时统一加执行权限（层 /opt 只读，必须在打包前搞定；此处为 root 可执行）
             chmod +x /layer/chrome/chrome /layer/chrome/chromedriver
             find /layer -name "selenium-manager" -exec chmod +x {} +
