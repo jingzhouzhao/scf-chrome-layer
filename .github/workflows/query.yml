@@ -17,12 +17,14 @@ jobs:
         run: echo "egress IP: $(curl -s --max-time 10 https://api.ipify.org || echo unknown)"
 
       - name: 连通性预检
+        env:
+          IDENTITY_CARD: ${{ secrets.IDENTITY_CARD }}
         run: |
           curl -s -o /dev/null -w "site HTTP=%{http_code} time=%{time_total}s\n" \
             --max-time 20 -X POST \
             'https://rsda.shrc.com.cn/selectFilePerson/selectFilePersonListAction.action' \
             -H 'Content-Type: application/x-www-form-urlencoded' \
-            --data 'filePerson.person.identityCard=***REMOVED_ID***&isNumber=0&sub=%B2%E9%D1%AF&filePerson.nicetySel=0' \
+            --data "filePerson.person.identityCard=${IDENTITY_CARD}&isNumber=0&sub=%B2%E9%D1%AF&filePerson.nicetySel=0" \
             || echo "预检失败/超时（可能 GitHub IP 也被封）"
 
       - name: 执行查询并推送钉钉
