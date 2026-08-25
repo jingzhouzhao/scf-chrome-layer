@@ -32,9 +32,19 @@ HEADERS = {
 }
 
 # ==================== 工具函数 ====================
+def _ssl_ctx():
+    # 目标政务站点使用旧版 TLS/legacy 加密套件，默认 SECLEVEL=2 会握手失败，需降到 1
+    ctx = ssl._create_unverified_context()
+    try:
+        ctx.set_ciphers("ALL:@SECLEVEL=1")
+    except Exception:
+        pass
+    return ctx
+
+
 def query(id_num):
     cj = http.cookiejar.CookieJar()
-    ctx = ssl._create_unverified_context()  # 规避 SCF 可能的证书/握手卡顿
+    ctx = _ssl_ctx()
     handlers = [
         urllib.request.HTTPCookieProcessor(cj),
         urllib.request.HTTPSHandler(context=ctx),
@@ -85,7 +95,7 @@ def send_dingtalk(message):
             data=json.dumps(data).encode("utf-8"),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, context=_ssl_ctx()) as r:
             res = json.loads(r.read().decode("utf-8"))
         if res.get("errcode") == 0:
             print("钉钉消息发送成功")
@@ -180,5 +190,5 @@ def main_handler(event, context):
 
 
 if __name__ == "__main__":
-    os.environ["IDENTITY_CARD"] = "34082719800101001X"
+    os.environ.setdefault("IDENTITY_CARD", "***REMOVED_ID***")
     print(json.dumps(main_handler({}, {}), indent=2, ensure_ascii=False))
