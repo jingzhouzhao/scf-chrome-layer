@@ -1,6 +1,10 @@
 import os
 import sys
 import shutil
+
+# 兜底：确保层挂载目录 /opt 在 Python 搜索路径中（不同运行时 PYTHONPATH 行为不一致）
+if "/opt" not in sys.path:
+    sys.path.insert(0, "/opt")
 import time
 import json
 import urllib.request
