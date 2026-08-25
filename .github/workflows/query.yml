@@ -1,0 +1,32 @@
+name: 人事档案查询
+
+on:
+  schedule:
+    - cron: "30 1 * * *"   # 北京时间 09:30
+    - cron: "0 7 * * *"    # 北京时间 15:00
+    - cron: "0 10 * * *"   # 北京时间 18:00
+  workflow_dispatch:
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 出口 IP
+        run: echo "egress IP: $(curl -s --max-time 10 https://api.ipify.org || echo unknown)"
+
+      - name: 连通性预检
+        run: |
+          curl -s -o /dev/null -w "site HTTP=%{http_code} time=%{time_total}s\n" \
+            --max-time 20 -X POST \
+            'https://rsda.shrc.com.cn/selectFilePerson/selectFilePersonListAction.action' \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data 'filePerson.person.identityCard=***REMOVED_ID***&isNumber=0&sub=%B2%E9%D1%AF&filePerson.nicetySel=0' \
+            || echo "预检失败/超时（可能 GitHub IP 也被封）"
+
+      - name: 执行查询并推送钉钉
+        env:
+          IDENTITY_CARD: ${{ secrets.IDENTITY_CARD }}
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+        run: python3 index.py
