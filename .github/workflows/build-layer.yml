@@ -80,8 +80,8 @@ jobs:
           cd ..
           ls -lh scf-chrome-layer.zip
 
-      - name: Upload artifact
+       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: scf-chrome-layer
-          path: scf-chrome-layer.zip
+          path: layer_root
