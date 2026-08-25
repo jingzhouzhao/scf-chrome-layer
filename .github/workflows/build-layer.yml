@@ -21,7 +21,7 @@ jobs:
       - name: Build chrome + libs on CentOS 7
         run: |
           docker run --rm -v "$PWD/layer_root:/layer" centos:7 bash -c '
-            set -e
+            set -x
             # 切换到 CentOS 7 Vault 归档源
             sed -i "s|^mirrorlist=|#mirrorlist=|g; s|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-Base.repo
             yum install -y epel-release
@@ -30,22 +30,28 @@ jobs:
             yum install -y chromium chromedriver
             mkdir -p /layer/chrome/lib
             # 用真正的二进制（/usr/bin/chromium-browser 只是包装脚本）
-            CHROME_SRC=/usr/lib64/chromium-browser/chromium-browser
-            [ -x "$CHROME_SRC" ] || CHROME_SRC=$(command -v chromium-browser || command -v chromium)
+            CHROME_SRC=$(find /usr/lib64/chromium-browser /usr/libexec/chromium-browser -maxdepth 1 -type f -name "chromium-browser" 2>/dev/null | head -1)
+            [ -z "$CHROME_SRC" ] && CHROME_SRC=$(readlink -f /usr/bin/chromium-browser 2>/dev/null)
             DRIVER_SRC=$(command -v chromedriver || find / -name "chromedriver" -type f 2>/dev/null | head -1)
-            echo "chrome: $CHROME_SRC  driver: $DRIVER_SRC"
+            echo "CHROME_SRC=$CHROME_SRC"; echo "DRIVER_SRC=$DRIVER_SRC"
+            ls -l "$CHROME_SRC" "$DRIVER_SRC"
             cp -L "$CHROME_SRC" /layer/chrome/chrome
             cp -L "$DRIVER_SRC" /layer/chrome/chromedriver
             chmod +x /layer/chrome/chrome /layer/chrome/chromedriver
+            echo "=== full ldd of chrome ==="
+            ldd /layer/chrome/chrome || true
+            ldd /layer/chrome/chromedriver || true
             ldd /layer/chrome/chrome /layer/chrome/chromedriver 2>/dev/null \
               | grep -E "=>" | awk "{print \$1, \$3}" | while read soname resolved; do
                 [ -z "$resolved" ] && continue
                 [ ! -e "$resolved" ] && continue
                 base=$(basename "$resolved")
-                cp -L "$resolved" "/layer/chrome/lib/$base"
-                [ "$soname" != "$base" ] && ln -sf "$base" "/layer/chrome/lib/$soname"
+                cp -L "$resolved" "/layer/chrome/lib/$base" 2>/dev/null || true
+                linkname=$(basename "$soname")
+                [ "$linkname" != "$base" ] && ln -sf "$base" "/layer/chrome/lib/$linkname" 2>/dev/null || true
               done
             echo "collected libs count:"; ls /layer/chrome/lib | wc -l
+            ls /layer/chrome/lib | head
           '
 
       # 3) 打包
