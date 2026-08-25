@@ -12,10 +12,7 @@ if "/opt" not in sys.path:
     sys.path.insert(0, "/opt")
 
 # ==================== 配置区域 ====================
-DINGTALK_WEBHOOK = os.environ.get(
-    "DINGTALK_WEBHOOK",
-    "https://oapi.dingtalk.com/robot/send?access_token=***REMOVED***"
-)
+DINGTALK_WEBHOOK = os.environ.get("DINGTALK_WEBHOOK")
 
 RESULT_URL = "https://rsda.shrc.com.cn/selectFilePerson/selectPersonList.ftl"
 QUERY_URL  = "https://rsda.shrc.com.cn/selectFilePerson/selectFilePersonListAction.action"
@@ -84,6 +81,9 @@ def mask_id(s):
 
 
 def send_dingtalk(message):
+    if not DINGTALK_WEBHOOK:
+        print("未配置 DINGTALK_WEBHOOK 环境变量，跳过钉钉推送")
+        return False
     data = {
         "msgtype": "markdown",
         "markdown": {"title": "人事档案查询通知", "text": "【通知】" + message},
@@ -108,7 +108,7 @@ def send_dingtalk(message):
 
 # ==================== 主函数 ====================
 def main_handler(event, context):
-    id_num = os.environ.get("IDENTITY_CARD", "")
+    id_num = os.environ.get("IDENTITY_CARD") or (sys.argv[1] if len(sys.argv) > 1 else "")
     if not id_num:
         return {"statusCode": 400, "body": json.dumps({"error": "身份证号未配置"})}
 
@@ -159,5 +159,4 @@ def main_handler(event, context):
 
 
 if __name__ == "__main__":
-    os.environ.setdefault("IDENTITY_CARD", "***REMOVED_ID***")
     print(json.dumps(main_handler({}, {}), indent=2, ensure_ascii=False))
