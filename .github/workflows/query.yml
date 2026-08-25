@@ -14,7 +14,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 出口 IP
-        run: echo "egress IP: $(curl -s --max-time 10 https://api.ipify.org || echo unknown)"
+        run: |
+          echo "egress IP: $(curl -s --max-time 10 https://api.ipify.org || echo unknown)"
 
       - name: 连通性预检
         env:
