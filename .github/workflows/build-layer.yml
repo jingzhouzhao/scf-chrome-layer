@@ -27,9 +27,11 @@ jobs:
             yum install -y epel-release
             # EPEL 7 也已归档
             sed -i "s|^metalink=|#metalink=|g; s|^#baseurl=https\?://download.fedoraproject.org/pub/epel/|baseurl=https://archives.fedoraproject.org/pub/archive/epel/|g" /etc/yum.repos.d/epel.repo
-            yum install -y chromium
+            yum install -y chromium chromedriver
             mkdir -p /layer/chrome/lib
-            CHROME_SRC=$(command -v chromium-browser || command -v chromium || find / -name "chromium-browser" -type f 2>/dev/null | head -1)
+            # 用真正的二进制（/usr/bin/chromium-browser 只是包装脚本）
+            CHROME_SRC=/usr/lib64/chromium-browser/chromium-browser
+            [ -x "$CHROME_SRC" ] || CHROME_SRC=$(command -v chromium-browser || command -v chromium)
             DRIVER_SRC=$(command -v chromedriver || find / -name "chromedriver" -type f 2>/dev/null | head -1)
             echo "chrome: $CHROME_SRC  driver: $DRIVER_SRC"
             cp -L "$CHROME_SRC" /layer/chrome/chrome
